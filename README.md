@@ -2,7 +2,7 @@ This project is a pure java implementation with Jsoup & HttpURLConnection for BU
 
 # API
 * `login(String account, String password)`, to login wifi gateway.
-* `getInformation()`, get account information including: `leftmoeny(String)`, `onlinestate(int)`, `status(String)`, `welcome`, etc.
+* `getInformation()`, get account information including: `leftmoeny`, `onlinestate`, `status`, `welcome`, etc.
 * `getOnlineIps()`, get all online IPs.
 * `forceOffline(String ip)`, force offline the specified ip.
-* `getLoginLog(LogType type)`, get the user login and logout logs. The logs contains `loginTime`, `logoutTime`, `minutes`, `fees`, `upload`, `download`, `ip`, etc. There are two types of logs now, `DAY` (means current date) and current `Month` (means current month).
+* `getLoginLog(LogType type)`, get the user login and logout logs. The logs contains `loginTime`, `logoutTime`, `minutes`, `fees`, `upload`, `download`, `ip`, etc. There are two types of logs now, `DAY` (means current date) and `Month` (means current month).
