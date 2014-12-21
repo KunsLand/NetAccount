@@ -134,6 +134,28 @@ public class GWSelf {
 		return parseLogDocument(res.parse());
 	}
 	
+	/**
+	 * 
+	 * @param startDate
+	 * for example: 2014-01-01
+	 * @param endDate
+	 * for example: 2014-12-21
+	 * @return
+	 * @throws IOException
+	 */
+	public LoginLog getLoginLog(String startDate, String endDate)
+			throws IOException{
+		Response res = null;
+		String url = "http://gwself.bupt.edu.cn/UserLoginLogAction.action";
+		Map<String, String> data = new HashMap<String, String>();
+		data.put("type", "4");
+		data.put("startDate", startDate);
+		data.put("endDate", endDate);
+		res = Jsoup.connect(url).cookies(cookies)
+				.method(Method.POST).data(data).execute();
+		return parseLogDocument(res.parse());
+	}
+	
 	private LoginLog parseLogDocument(Document doc){
 		LoginLog log = new LoginLog();
 		Elements data = null;
@@ -168,8 +190,11 @@ public class GWSelf {
 			List<String> ips = gw.getOnlineIps();
 			System.out.println(ips);
 //			System.out.println(gw.forceOffline(ips.get(0)));
-			System.out.println(gw.getLoginLog(LogType.DAY));
-			System.out.println(gw.getLoginLog(LogType.MONTH));
+//			System.out.println(gw.getLoginLog(LogType.DAY));
+//			System.out.println(gw.getLoginLog(LogType.MONTH));
+			LoginLog log = gw.getLoginLog("2014-01-01", "2014-12-21");
+			for(LogItem item: log.logs)
+				System.out.println(IPLocationMap.getLocation(item.ip));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

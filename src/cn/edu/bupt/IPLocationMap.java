@@ -7,7 +7,7 @@ public class IPLocationMap {
 	
 	private static Map<String, String> map = getLocalIPLocationMap();
 	
-	private static Map<String, String> getLocalIPLocationMap(){
+	public static Map<String, String> getLocalIPLocationMap(){
 		Map<String, String> map = new HashMap<String, String>();
 		map.put("101", "教一");
 		map.put("102", "教二");
