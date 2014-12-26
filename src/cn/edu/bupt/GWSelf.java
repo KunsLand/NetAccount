@@ -4,15 +4,17 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.codec.digest.DigestUtils;
 import org.jsoup.Connection.Method;
 import org.jsoup.Connection.Response;
 import org.jsoup.Jsoup;
@@ -30,7 +32,8 @@ public class GWSelf {
 	private Map<String, String> ipMap = null;
 	private GWJsonMessage info = null;
 	
-	public void login(String account, String password) throws IOException{
+	public void login(String account, String password)
+			throws IOException, NoSuchAlgorithmException{
 		String url = null, body = null, checkcode = null;
 		Map<String, String> data = new HashMap<String, String>();
 		cookies = new HashMap<String, String>();
@@ -52,13 +55,21 @@ public class GWSelf {
 
 		url = "http://gwself.bupt.edu.cn/LoginAction.action";
 		data.put("account", account);
-		data.put("password", DigestUtils.md5Hex(password));
+		data.put("password",getMD5Hex(password));
 		data.put("code", "");
 		data.put("checkcode", checkcode);
 		data.put("Submit", "登 录");
 		res = Jsoup.connect(url).cookies(cookies)
 				.method(Method.POST).data(data).execute();
 		info = getInformation();
+	}
+	
+	private String getMD5Hex(String str)
+			throws UnsupportedEncodingException, NoSuchAlgorithmException{
+		byte[] bytes = str.getBytes("UTF-8");
+		MessageDigest md = MessageDigest.getInstance("MD5");
+		byte[] hash = md.digest(bytes);
+		return new BigInteger(1,hash).toString(16);
 	}
 	
 	private String getCheckCode(String html){
@@ -195,7 +206,7 @@ public class GWSelf {
 			LoginLog log = gw.getLoginLog("2014-01-01", "2014-12-21");
 			for(LogItem item: log.logs)
 				System.out.println(IPLocationMap.getLocation(item.ip));
-		} catch (IOException e) {
+		} catch (IOException | NoSuchAlgorithmException e) {
 			e.printStackTrace();
 		}
 	}
