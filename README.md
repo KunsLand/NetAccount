@@ -1,4 +1,7 @@
-This project is a pure java implementation with Jsoup API & HttpURLConnection API for BUPT wifi gateway login and management. It is __NOT__ official.
+This project is a pure java implementation with Jsoup API & HttpURLConnection API for BUPT wifi [gateway] login and management. It is __NOT__ official.
+
+# Note
+这仅仅是针对"用户自助服务系统"的API,不是针对"校园网络登录"的API.
 
 # API
 
@@ -13,3 +16,5 @@ This project is a pure java implementation with Jsoup API & HttpURLConnection AP
 #### IPLocationMap
 * `getLocalIPLocationMap()`, return the ip-location map.
 * `getLocation(String ip)`, get the location of a specific ip address.
+
+[gateway]:http://gwself.bupt.edu.cn
