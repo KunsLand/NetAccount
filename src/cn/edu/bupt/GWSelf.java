@@ -1,13 +1,8 @@
 package cn.edu.bupt;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -35,32 +30,29 @@ public class GWSelf {
 	public void login(String account, String password)
 			throws IOException, NoSuchAlgorithmException{
 		String url = null, body = null, checkcode = null;
-		Map<String, String> data = new HashMap<String, String>();
 		cookies = new HashMap<String, String>();
 		Response res = null;
 		
 		url = "http://gwself.bupt.edu.cn/nav_login";
-		res = Jsoup.connect(url).method(Method.GET).execute();
+		res = Jsoup.connect(url).execute();
 		body = res.body();
 		cookies = res.cookies();
 		checkcode = getCheckCode(body);
 		
 		url = "http://gwself.bupt.edu.cn/RandomCodeAction.action?" +
 				"randomNum=" + Math.random();
-		URL target = new URL(url);
-		HttpURLConnection conn = (HttpURLConnection) target.openConnection();
-		conn.setRequestProperty("Cookie", convertMapToString(cookies));
-		conn.getInputStream().close();
-		conn.disconnect();
+		Jsoup.connect(url).cookies(cookies)
+			.ignoreContentType(true).execute();
 
 		url = "http://gwself.bupt.edu.cn/LoginAction.action";
-		data.put("account", account);
-		data.put("password",getMD5Hex(password));
-		data.put("code", "");
-		data.put("checkcode", checkcode);
-		data.put("Submit", "登 录");
 		res = Jsoup.connect(url).cookies(cookies)
-				.method(Method.POST).data(data).execute();
+				.method(Method.POST)
+				.data("account", account)
+				.data("password",getMD5Hex(password))
+				.data("code", "")
+				.data("checkcode", checkcode)
+				.data("Submit", "登 录")
+				.execute();
 		info = getInformation();
 	}
 	
@@ -79,39 +71,14 @@ public class GWSelf {
 		return ans;
 	}
 	
-	private String convertMapToString(Map<String, String> cookies)
-			throws UnsupportedEncodingException{
-		String ans = "";
-		for(String key: cookies.keySet()){
-			ans += "&" + key + "="
-					+ URLEncoder.encode(cookies.get(key), "UTF-8");
-		}
-		ans = ans.substring(1);
-		return ans;
-	}
-	
 	public GWJsonMessage getInformation() throws IOException{
 		String url = "http://gwself.bupt.edu.cn/refreshaccount?t="
 				+ Math.random();
-		info = new Gson().fromJson(getJson(url, cookies), GWJsonMessage.class);
+		info = new Gson().fromJson(
+				Jsoup.connect(url).cookies(cookies)
+					.ignoreContentType(true).execute().body(),
+				GWJsonMessage.class);
 		return info;
-	}
-	
-	private String getJson(String url, Map<String, String> cookies)
-			throws IOException{
-		URL target = new URL(url);
-		HttpURLConnection conn = (HttpURLConnection) target.openConnection();
-		conn.setRequestProperty("Cookie", convertMapToString(cookies));
-		BufferedReader reader = new BufferedReader(
-				new InputStreamReader(conn.getInputStream()));
-		String line = null;
-		StringBuilder response = new StringBuilder();
-		while((line = reader.readLine()) != null){
-			response.append(line);
-		}
-		reader.close();
-		conn.disconnect();
-		return response.toString();
 	}
 	
 	public List<String> getOnlineIps() throws IOException{
@@ -130,7 +97,10 @@ public class GWSelf {
 	public GWJsonMessage forceOffline(String ip) throws IOException{
 		String url = "http://gwself.bupt.edu.cn/tooffline?t="
 				+ Math.random() + "&fldsessionid=" + ipMap.remove(ip);
-		return new Gson().fromJson(getJson(url, cookies), GWJsonMessage.class);
+		return new Gson().fromJson(
+				Jsoup.connect(url).cookies(cookies)
+					.ignoreContentType(true).execute().body(),
+				GWJsonMessage.class);
 	}
 	
 	public LoginLog getLoginLog(LogType type) throws IOException{
