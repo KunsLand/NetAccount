@@ -15,97 +15,70 @@ public class NetAccount {
 	private Map<String, String> cookies = null;
 	private CallBack callback = null;
 	
-	public NetAccount(CallBack callback){
+	public void setCallBack(CallBack callback){
 		this.callback = callback;
 	}
-	
-	public void loadLoginPage(){
-		String url = "http://netaccount.bupt.edu.cn/login";
-		Response res = null;
+
+	public void sendLoginRequest() {
 		try {
-			res = Jsoup.connect(url).execute();
+			String url = "http://netaccount.bupt.edu.cn/login";
+			Response res = Jsoup.connect(url).execute();
 			cookies = res.cookies();
+
+			url = "http://netaccount.bupt.edu.cn/authcode";
+			res = Jsoup.connect(url).cookies(cookies).ignoreContentType(true)
+					.execute();
+			cookies = res.cookies();
+			callback.showCaptcha(res.bodyAsBytes(), 0);
 		} catch (IOException e) {
-			if(callback != null)
-				callback.doResponseMessage(
-					CallBack.MessageType.PAGE_LOAD_ERROR);
+			callback.showError("Failed in sending LOGIN request.", 0);
 		}
 	}
-	
-	public byte[] getCaptcha(){
-		String url = "http://netaccount.bupt.edu.cn/authcode";
-		Response res = null;
-		byte[] captcha = null;
+
+	public void doLogin(String account, String password, String captcha) {
 		try {
-			res = Jsoup.connect(url).cookies(cookies)
-					.ignoreContentType(true).execute();
-			captcha = res.bodyAsBytes();
+			String url = "http://netaccount.bupt.edu.cn/dologin";
+			Response res = Jsoup.connect(url).cookies(cookies)
+					.data("user", account).data("pass", password)
+					.data("captcha", captcha).method(Method.POST).execute();
 			cookies = res.cookies();
+			if(res.parse().select("div.alert-error").isEmpty()){
+				sendChargeRequest();
+			} else callback.showError("Login failed.", 0);
 		} catch (IOException e) {
-			if(callback != null)
-				callback.doResponseMessage(
-					CallBack.MessageType.CAPTCHA_LOAD_ERROR);
+			callback.showError("Login failed.", 0);
 		}
-		return captcha;
 	}
-	
-	public void doLogin(String account, String password, String captcha){
-		String url = "http://netaccount.bupt.edu.cn/dologin";
-		Response res = null;
+
+	public void sendChargeRequest() {
 		try {
-			res = Jsoup.connect(url).cookies(cookies)
-					.data("user", account)
-					.data("pass", password)
-					.data("captcha", captcha)
+			String url = "http://netaccount.bupt.edu.cn/Info/pay";
+			Response res = Jsoup.connect(url).cookies(cookies).execute();
+			cookies = res.cookies();
+
+			url = "http://netaccount.bupt.edu.cn/authcode";
+			res = Jsoup.connect(url).cookies(cookies).ignoreContentType(true)
+					.execute();
+			cookies = res.cookies();
+			callback.showCaptcha(res.bodyAsBytes(), 1);
+		} catch (IOException e) {
+			callback.showError("Failed in sending CHARGE request.", 1);
+		}
+	}
+
+	public void postChargeForm(int payamount, String captcha) {
+		try {
+			String url = "http://netaccount.bupt.edu.cn/Info/pay";
+			Response res = Jsoup.connect(url).cookies(cookies)
+					.data("payamount", "" + payamount).data("captcha", captcha)
 					.method(Method.POST).execute();
 			cookies = res.cookies();
-			if(res.parse().select("alert-error").isEmpty())
-				callback.doResponseMessage(CallBack.MessageType.LOGIN_SUCCESS);
-			else 
-				callback.doResponseMessage(CallBack.MessageType.LOGIN_FAILED);
+			if(res.parse().select(".alert-error").isEmpty()){
+				callback.chargeSucceed(res.parse().select("form > div").get(1)
+						.select("div > div").first().text());
+			} else callback.showError("Charge failed", 1);
 		} catch (IOException e) {
-			if(callback != null)
-				callback.doResponseMessage(
-					CallBack.MessageType.LOGIN_FAILED);
-		}
-	}
-	
-	public void loadPayPage(){
-		String url = "http://netaccount.bupt.edu.cn/Info/pay";
-		Response res;
-		try {
-			res = Jsoup.connect(url).cookies(cookies).execute();
-			cookies = res.cookies();
-		} catch (IOException e) {
-			if(callback != null)
-				callback.doResponseMessage(
-					CallBack.MessageType.PAGE_LOAD_ERROR);
-		}
-	}
-	
-	public void postPayForm(int payamount, String captcha){
-		if(payamount < 5 || payamount > 100) {
-			if(callback != null)
-				callback.doResponseMessage(
-						CallBack.MessageType.PAYAMOUNT_INVALID);
-			return;
-		}
-		String url = "http://netaccount.bupt.edu.cn/Info/pay";
-		Response res;
-		try {
-			res = Jsoup.connect(url).cookies(cookies)
-					.data("payamount", "" + payamount)
-					.data("captcha", captcha)
-					.method(Method.POST).execute();
-			cookies = res.cookies();
-			if(res.parse().select("alert-error").isEmpty())
-				callback.doResponseMessage(CallBack.MessageType.PAY_SUCCESS);
-			else 
-				callback.doResponseMessage(CallBack.MessageType.PAY_FAILED);
-		} catch (IOException e) {
-			if(callback != null)
-				callback.doResponseMessage(
-					CallBack.MessageType.PAY_FAILED);
+			callback.showError("Charge failed.", 1);
 		}
 	}
 
@@ -113,34 +86,41 @@ public class NetAccount {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		NetAccount netAccount = new NetAccount(null);
-		try {
-			String path = "/home/likun/Downloads/captcha.png";
-			
-			netAccount.loadLoginPage();
-			OutputStream out =
-					new BufferedOutputStream(new FileOutputStream(path));
-		    out.write(netAccount.getCaptcha());
-		    out.close();
-		    
-		    String account = "xxx", password = "yyy";
-		    String captcha = null;
-		    @SuppressWarnings("resource")
-			Scanner scan = new Scanner(System.in);
-		    captcha = scan.nextLine();
-		    netAccount.doLogin(account, password, captcha);
-		    
-		    netAccount.loadPayPage();
-		    out = new BufferedOutputStream(new FileOutputStream(path));
-		    out.write(netAccount.getCaptcha());
-		    out.close();
-		    
-		    int payamount = 10;
-		    captcha = scan.nextLine();
-		    netAccount.postPayForm(payamount, captcha);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+		final NetAccount na = new NetAccount();
+		CallBack callback = new CallBack(){
+			@Override
+			public void showCaptcha(byte[] captcha, int phase) {
+				String path = "/home/likun/Downloads/captcha.png";
+				OutputStream out = null;
+				try {
+					out = new BufferedOutputStream(new FileOutputStream(path));
+					out.write(captcha);
+					out.close();
+				    @SuppressWarnings("resource")
+					Scanner scan = new Scanner(System.in);
+				    String captchaStr = scan.nextLine();
+				    if(phase == 0)
+				    	na.doLogin("xxx", "yyy", captchaStr);
+				    else
+				    	na.postChargeForm(10, captchaStr);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
 
+			@Override
+			public void showError(String error, int phase) {
+				System.out.println(phase + ": " + error);
+			}
+
+			@Override
+			public void chargeSucceed(String balance) {
+				System.out.println("Charge Succeed. Now Your balance is: "
+						+ balance);
+			}
+			
+		};
+		na.setCallBack(callback);
+		na.sendLoginRequest();
+	}
 }

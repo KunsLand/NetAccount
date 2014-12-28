@@ -1,7 +1,7 @@
-This project is a pure java implementation with Jsoup API & HttpURLConnection API for BUPT wifi [gateway] login and management. It is __NOT__ official.
+This project is a pure java implementation with [Jsoup] API for BUPT wifi [gateway] login, management and recharge. It is __NOT__ official.
 
 # Note
-这仅仅是针对"用户自助服务系统"的API,不是针对"校园网络登录"的API.
+这仅仅包含"用户自助服务系统"和"网关充值系统"的API,不包含"校园网络登录"的API.
 
 # API
 
@@ -17,4 +17,18 @@ This project is a pure java implementation with Jsoup API & HttpURLConnection AP
 * `getLocalIPLocationMap()`, return the ip-location map.
 * `getLocation(String ip)`, get the location of a specific ip address.
 
+#### NetAccount
+* `setCallBack(CallBack callback)`, to set async-processor for the async requirement in Android development. `CallBack` is an interface enables process the HTTP response asynchronously if programmed properly.
+* `sendLoginRequest()`, to send login request and load login page. The most import response is the `captcha` image(验证码图片). You should store or show the image bytes in `showCaptcha` interface.
+* `dologin(String account, String password, String captcha)`, to login before you charge. If login succeeds, the `sendChargeRequest()` will be sent to the server automatically.
+* `sendChargeRequest()`, to send recharge request which also involves `captcha` image.
+* `postChargeForm(int payamount, String captcha)`, to send recharge POST request.
+
+#### CallBack
+This is an interface should be used with `NetAccount` instance.
+* `showCaptcha(byte[] captcha, int phase)`, to process captcha in a certain request `phase` (0 means login phase, 1 means recharge phase).
+* `showError(String error, int phase)`, to process errors or exception in the a certain `phase`.
+* `chargeSucceed(String balance)`, to show the `balance`(余额) after recharge succeeds.
+
+[Jsoup]:http://jsoup.org/
 [gateway]:http://gwself.bupt.edu.cn
