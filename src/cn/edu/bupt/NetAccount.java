@@ -19,6 +19,7 @@ public class NetAccount {
 	private CallBack callback = null;
 	private String account = null, password = null;
 	private int timeout = 10;
+	private boolean autoRefresh = true;
 	
 	public NetAccount(String account, String password){
 		this.account = account;
@@ -29,8 +30,12 @@ public class NetAccount {
 		this.callback = callback;
 	}
 	
-	public void setTimeout(int minutes){
-		this.timeout = minutes;
+	public void setTimeout(int seconds){
+		this.timeout = seconds;
+	}
+	
+	public void setAutoRefreshIndexPage(boolean auto){
+		this.autoRefresh = auto;
 	}
 
 	public void sendLoginRequest() {
@@ -76,6 +81,18 @@ public class NetAccount {
 		return ipList;
 	}
 	
+	public void refreshIndexPage(){
+		try {
+			String url = "http://netaccount.bupt.edu.cn/";
+			Response res = Jsoup.connect(url).cookies(cookies).execute();
+			cookies = res.cookies();
+			callback.showIpList(getIpList(res.parse()));
+		} catch (IOException e) {
+			callback.showError("REFRESH INDEX PAGE failed: " + e.getMessage(),
+					Action.REFRESH_INDEX_PAGE);
+		}
+	}
+	
 	public void forceOffline(String ip){
 		try {
 			String url = "http://netaccount.bupt.edu.cn/Info/kickself";
@@ -89,6 +106,7 @@ public class NetAccount {
 			callback.showError("Force offline failed: " + e.getMessage(),
 					Action.FORCE_OFFLINE);
 		}
+		if(autoRefresh) refreshIndexPage();
 	}
 	
 	public void sendQueryRequest(String month){

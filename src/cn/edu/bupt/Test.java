@@ -20,8 +20,11 @@ public class Test {
 	    System.out.println("Password:");
 	    String password = scan.nextLine();
 		final NetAccount na = new NetAccount(account, password);
+		na.setAutoRefreshIndexPage(false);
+		
 	    System.out.println("Set captcha storage path:");
 		final String path = scan.nextLine();
+		
 		CallBack callback = new CallBack(){
 			@Override
 			public void showCaptcha(byte[] captcha, Action action) {

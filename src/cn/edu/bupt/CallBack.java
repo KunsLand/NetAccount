@@ -12,6 +12,7 @@ public interface CallBack {
 	
 	public enum Action{
 		LOGIN,
+		REFRESH_INDEX_PAGE,
 		FORCE_OFFLINE,
 		QUERY,
 		RECHARGE,
