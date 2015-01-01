@@ -4,7 +4,7 @@ import java.util.List;
 
 public class LoginLog {
 	
-	// summary logs of this day or month
+	// summary logs of this month
 	public double upload = 0.0,
 			download = 0.0,
 			total = 0.0,

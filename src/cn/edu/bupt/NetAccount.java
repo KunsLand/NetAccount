@@ -1,22 +1,36 @@
 package cn.edu.bupt;
 
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
-
 import org.jsoup.Connection.Method;
 import org.jsoup.Connection.Response;
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+import cn.edu.bupt.CallBack.Action;
+import cn.edu.bupt.LoginLog.LogItem;
 
 public class NetAccount {
 	private Map<String, String> cookies = null;
 	private CallBack callback = null;
+	private String account = null, password = null;
+	private int timeout = 10;
+	
+	public NetAccount(String account, String password){
+		this.account = account;
+		this.password = password;
+	}
 	
 	public void setCallBack(CallBack callback){
 		this.callback = callback;
+	}
+	
+	public void setTimeout(int minutes){
+		this.timeout = minutes;
 	}
 
 	public void sendLoginRequest() {
@@ -29,25 +43,92 @@ public class NetAccount {
 			res = Jsoup.connect(url).cookies(cookies).ignoreContentType(true)
 					.execute();
 			cookies = res.cookies();
-			callback.showCaptcha(res.bodyAsBytes(), 0);
+			callback.showCaptcha(res.bodyAsBytes(), Action.LOGIN);
 		} catch (IOException e) {
-			callback.showError("Failed in sending LOGIN request.", 0);
+			callback.showError("Failed in sending LOGIN request: " +
+					e.getMessage(),	Action.LOGIN);
 		}
 	}
 
-	public void doLogin(String account, String password, String captcha) {
+	public void doLogin(String captcha) {
 		try {
 			String url = "http://netaccount.bupt.edu.cn/dologin";
 			Response res = Jsoup.connect(url).cookies(cookies)
 					.data("user", account).data("pass", password)
 					.data("captcha", captcha).method(Method.POST).execute();
 			cookies = res.cookies();
-			if(res.parse().select("div.alert-error").isEmpty()){
-				sendChargeRequest();
-			} else callback.showError("Login failed.", 0);
+			Document doc = res.parse();
+			if(doc.select("div.alert-error").isEmpty()){
+				callback.showIpList(getIpList(doc));
+			} else callback.showError("Login failed.", Action.LOGIN);
 		} catch (IOException e) {
-			callback.showError("Login failed.", 0);
+			callback.showError("Login failed: " + e.getMessage(),
+					Action.LOGIN);
 		}
+	}
+	
+	private List<String> getIpList(Document doc){
+		Elements el = doc.select("a.remove");
+		List<String> ipList = new ArrayList<String>();
+		for (Element e: el){
+			ipList.add(e.attr("data-ip"));
+		}
+		return ipList;
+	}
+	
+	public void forceOffline(String ip){
+		try {
+			String url = "http://netaccount.bupt.edu.cn/Info/kickself";
+			Response res = Jsoup.connect(url).cookies(cookies)
+					.timeout(timeout*1000)
+					.data("ip", ip).method(Method.POST)
+					.ignoreContentType(true).execute();
+			cookies = res.cookies();
+			callback.showForceOfflineResult(res.body());
+		} catch (IOException e) {
+			callback.showError("Force offline failed: " + e.getMessage(),
+					Action.FORCE_OFFLINE);
+		}
+	}
+	
+	public void sendQueryRequest(String month){
+		try{
+			String url = "http://netaccount.bupt.edu.cn/Info/bill" +
+					"?date=" + month;
+			Response res = Jsoup.connect(url).cookies(cookies).execute();
+			cookies = res.cookies();
+			callback.showQueryResult(getLoginLog(res.parse()));
+		}catch(IOException e){
+			callback.showError("Failed in sending RECHARGE request: " +
+					e.getMessage(), Action.RECHARGE);
+		}
+	}
+	
+	private LoginLog getLoginLog(Document doc){
+		Elements tables = doc.select("table");
+		if(tables==null || tables.isEmpty()) return null;
+		LoginLog log = new LoginLog();
+		Elements data = tables.get(0).select("tbody > tr > td");
+		log.upload = Double.valueOf(data.get(1).ownText());
+		log.download = Double.valueOf(data.get(3).ownText());
+		log.total = Double.valueOf(data.get(5).ownText());
+		log.fees = Double.valueOf(data.get(7).ownText());
+		log.minutes = Integer.valueOf(data.get(9).ownText());
+		Elements rows = tables.get(1).select("tbody > tr");
+		log.logs = new ArrayList<LogItem>();
+		for(Element row: rows){
+			LogItem item = log.new LogItem();
+			item.loginTime = row.child(0).ownText();
+			item.logoutTime = row.child(1).ownText();
+			item.minutes = Integer.valueOf(row.child(2).ownText());
+			item.total = Double.valueOf(row.child(3).ownText());
+			item.fees = Double.valueOf(row.child(4).ownText());
+			item.upload = Double.valueOf(row.child(5).ownText());
+			item.download = Double.valueOf(row.child(6).ownText());
+			item.ip = row.child(7).ownText();
+			log.logs.add(item);
+		}
+		return log;
 	}
 
 	public void sendChargeRequest() {
@@ -60,9 +141,10 @@ public class NetAccount {
 			res = Jsoup.connect(url).cookies(cookies).ignoreContentType(true)
 					.execute();
 			cookies = res.cookies();
-			callback.showCaptcha(res.bodyAsBytes(), 1);
+			callback.showCaptcha(res.bodyAsBytes(), Action.RECHARGE);
 		} catch (IOException e) {
-			callback.showError("Failed in sending CHARGE request.", 1);
+			callback.showError("Failed in sending RECHARGE request: " +
+					e.getMessage(), Action.RECHARGE);
 		}
 	}
 
@@ -76,51 +158,10 @@ public class NetAccount {
 			if(res.parse().select(".alert-error").isEmpty()){
 				callback.chargeSucceed(res.parse().select("form > div").get(1)
 						.select("div > div").first().text());
-			} else callback.showError("Charge failed", 1);
+			} else callback.showError("Recharge failed", Action.RECHARGE);
 		} catch (IOException e) {
-			callback.showError("Charge failed.", 1);
+			callback.showError("Recharge failed: " + e.getMessage(),
+					Action.RECHARGE);
 		}
-	}
-
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
-		final NetAccount na = new NetAccount();
-		CallBack callback = new CallBack(){
-			@Override
-			public void showCaptcha(byte[] captcha, int phase) {
-				String path = "/home/likun/Downloads/captcha.png";
-				OutputStream out = null;
-				try {
-					out = new BufferedOutputStream(new FileOutputStream(path));
-					out.write(captcha);
-					out.close();
-				    @SuppressWarnings("resource")
-					Scanner scan = new Scanner(System.in);
-				    String captchaStr = scan.nextLine();
-				    if(phase == 0)
-				    	na.doLogin("xxx", "yyy", captchaStr);
-				    else
-				    	na.postChargeForm(10, captchaStr);
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-
-			@Override
-			public void showError(String error, int phase) {
-				System.out.println(phase + ": " + error);
-			}
-
-			@Override
-			public void chargeSucceed(String balance) {
-				System.out.println("Charge Succeed. Now Your balance is: "
-						+ balance);
-			}
-			
-		};
-		na.setCallBack(callback);
-		na.sendLoginRequest();
 	}
 }
